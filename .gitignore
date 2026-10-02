@@ -7,3 +7,4 @@ prisma/dev.db*
 *.db
 uploads/
 .DS_Store
+next-env.d.ts
