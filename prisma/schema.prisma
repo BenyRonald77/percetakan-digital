@@ -1,0 +1,102 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Bahan cetak: tipeHarga per_cm2 | per_lembar
+model Bahan {
+  id         Int       @id @default(autoincrement())
+  nama       String
+  tipeHarga  String    @default("per_cm2")
+  hargaDasar Int       // rupiah per cm2 atau per lembar
+  aktif      Boolean   @default(true)
+  pesanan    Pesanan[]
+}
+
+// Finishing: tipeBiaya per_cm2 | per_lembar | flat
+model Finishing {
+  id        Int       @id @default(autoincrement())
+  nama      String
+  tipeBiaya String    @default("per_cm2")
+  biaya     Int       // rupiah
+  aktif     Boolean   @default(true)
+  pesanan   Pesanan[]
+}
+
+// Tier harga jumlah: maxQty null = tidak terbatas
+model TierHarga {
+  id            Int    @id @default(autoincrement())
+  nama          String
+  minQty        Int
+  maxQty        Int?
+  diskonPersen  Int    @default(0)
+  aktif         Boolean @default(true)
+}
+
+model Mesin {
+  id              Int       @id @default(autoincrement())
+  nama            String
+  kapasitasPerJam Int       // unit per jam
+  aktif           Boolean   @default(true)
+  antrean         Antrean[]
+  pesanan         Pesanan[]
+}
+
+model DesainFile {
+  id         Int      @id @default(autoincrement())
+  namaAsli   String
+  namaSimpan String
+  mime       String
+  ukuran     Int      // bytes
+  dibuatPada String   // ISO
+  desainUntuk Pesanan[] @relation("desain")
+  proofUntuk  Pesanan[] @relation("proof")
+}
+
+// status: menunggu_proof | menunggu_persetujuan | antre_produksi | dikerjakan |
+//         selesai | siap_diambil | ditolak
+model Pesanan {
+  id               Int        @id @default(autoincrement())
+  kode             String     @unique
+  namaPelanggan    String
+  kontak           String
+  bahanId          Int
+  finishingId      Int?
+  panjangCm        Float
+  lebarCm          Float
+  jumlah           Int
+  hargaSatuan      Int        // snapshot rupiah per unit
+  total            Int        // snapshot rupiah
+  rincian          String     // JSON rincian kalkulasi
+  desainFileId     Int?
+  proofFileId      Int?
+  catatan          String     @default("")
+  status           String     @default("menunggu_proof")
+  mesinId          Int?
+  estimasiSelesai  String?    // ISO
+  dibuatPada       String     // ISO
+  bahan            Bahan      @relation(fields: [bahanId], references: [id])
+  finishing        Finishing? @relation(fields: [finishingId], references: [id])
+  desainFile       DesainFile? @relation("desain", fields: [desainFileId], references: [id])
+  proofFile        DesainFile? @relation("proof", fields: [proofFileId], references: [id])
+  mesin            Mesin?     @relation(fields: [mesinId], references: [id])
+  antrean          Antrean?
+}
+
+// status antrean: antre | dikerjakan | selesai
+model Antrean {
+  id              Int     @id @default(autoincrement())
+  pesananId       Int     @unique
+  mesinId         Int
+  posisi          Int
+  status          String  @default("antre")
+  durasiMenit     Int
+  estimasiSelesai String? // ISO
+  dibuatPada      String  // ISO
+  pesanan         Pesanan @relation(fields: [pesananId], references: [id])
+  mesin           Mesin   @relation(fields: [mesinId], references: [id])
+}
